@@ -9,8 +9,8 @@ use Omnipay\Common\Exception\InvalidResponseException;
  */
 abstract class RivertyAbstractRequest extends \Omnipay\Common\Message\AbstractRequest
 {
-    public $testEndpoint = 'https://testcheckout.buckaroo.nl/html/';
-    public $liveEndpoint = 'https://checkout.buckaroo.nl/html/';
+    public $testEndpoint = 'https://testcheckout.buckaroo.nl/json/Transaction';
+    public $liveEndpoint = 'https://checkout.buckaroo.nl/json/Transaction';
 
     const SERVICE_NAME = 'afterpay';
     const SERVICE_VERSION = 1;
@@ -143,6 +143,13 @@ abstract class RivertyAbstractRequest extends \Omnipay\Common\Message\AbstractRe
 
         $data = array(
             'Currency' => $this->getCurrency(),
+            // Buckaroo's own docs describe Invoice as "Invoice/order number" (alphanumeric,
+            // dashes, underscores; max 19 characters) - using the same value as Order rather than
+            // getTransactionId() deliberately: transactionId is our payment/transaction reference
+            // (a UUID in this codebase, 36 characters - already over the 19-char cap on its own),
+            // whereas getOrder() is already kept <=19 characters (explicit order reference, or the
+            // auto-generated fallback).
+            'Invoice' => $this->getOrder(),
             'Order' => $this->getOrder(),
         );
 
@@ -150,6 +157,43 @@ abstract class RivertyAbstractRequest extends \Omnipay\Common\Message\AbstractRe
 
         if ($this->getOriginalTransactionKey()) {
             $data['OriginalTransactionKey'] = $this->getOriginalTransactionKey();
+        }
+
+        // `getReturnUrl()`/`setReturnUrl()` are inherited for free from Omnipay\Common's
+        // AbstractRequest (ParametersTrait) - the payment service already populates this
+        // generically for every interactive gateway request via
+        // RequestConverterDriver::convertRequest() (see PerformAction.php), exactly like it does
+        // websiteKey/secretKey/testMode. The classic Brq_*-based requests in this package read it
+        // as `Brq_return` (see AbstractRequest::getData()); per
+        // https://docs.buckaroo.io/docs/api-docs-basic-parameters the JSON Payment Engine's
+        // equivalent top-level field is `ReturnURL` (optional - only sent when actually set).
+        if ($this->getReturnUrl()) {
+            $data['ReturnURL'] = $this->getReturnUrl();
+        }
+
+        // `getCancelUrl()` is likewise inherited for free, and already populated with the exact
+        // same value as `returnUrl` by RequestConverterDriver::convertRequest() (there is only one
+        // merchant-supplied "come back to checkout" URL in this codebase - it isn't split into
+        // separate cancel/reject destinations upstream). ReturnURLCancel/ReturnURLReject are both
+        // documented as optional alternative return URLs for cancelled/rejected transactions
+        // respectively (docs.buckaroo.io/docs/api-docs-basic-parameters) - pointed at the same
+        // checkout return URL here, same as ReturnURL.
+        if ($this->getCancelUrl()) {
+            $data['ReturnURLCancel'] = $this->getCancelUrl();
+            $data['ReturnURLReject'] = $this->getCancelUrl();
+        }
+
+        // `getNotifyUrl()`/`setNotifyUrl()` are likewise inherited for free from Omnipay\Common's
+        // AbstractRequest. The consuming payment service only ever populates this parameter when
+        // `$gateway->supports(new NotifyRequest(...))` returns true (see PerformAction.php), i.e.
+        // once a NotifyHandler is actually registered for this gateway - see
+        // Infrastructure\Omnipay\Gateway\Buckaroo\NotifyHandler and
+        // config/services/omnipay/buckaroo.yaml. `PushURL` is the JSON Payment Engine's top-level
+        // equivalent (docs.buckaroo.io/docs/api-docs-basic-parameters) of the classic gateway's
+        // async webhook mechanism - Buckaroo calls it to report a Riverty transaction's final
+        // status once the asynchronous credit-check/consumer-acceptance step resolves.
+        if ($this->getNotifyUrl()) {
+            $data['PushURL'] = $this->getNotifyUrl();
         }
 
         if ($this->getClientIp()) {
@@ -191,7 +235,9 @@ abstract class RivertyAbstractRequest extends \Omnipay\Common\Message\AbstractRe
         );
 
         $httpResponse = $this->httpClient->request('POST', $endpoint, $headers, $body);
-        $responseData = json_decode((string) $httpResponse->getBody(), true);
+        $responseData = json_decode((string) $responseBody = $httpResponse->getBody()->getContents(), true);
+
+        file_put_contents('/srv/app/var/log/riverty.log', $responseBody . "\r\n\r\n");
 
         if (!is_array($responseData)) {
             throw new InvalidResponseException('Unable to parse Riverty/Buckaroo JSON response');

@@ -87,13 +87,20 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         $items = $this->getItems();
 
         if ($items && count($items) > 0) {
+            $vatPercentages = $this->getLineVatPercentages();
             $index = 1;
 
             foreach ($items as $item) {
                 $groupId = (string) $index;
+                // Per-line VAT when available (see RivertyAbstractRequest::getLineVatPercentages()
+                // for why this can't just live on $item), otherwise fall back to the single
+                // request-level override.
+                $vatPercentage = \array_key_exists($index - 1, $vatPercentages)
+                    ? $vatPercentages[$index - 1]
+                    : $this->getVatPercentage();
                 $parameters[] = $this->buildParameter('Description', $item->getName(), 'Article', $groupId);
                 $parameters[] = $this->buildParameter('GrossUnitPrice', $this->formatAmount($item->getPrice()), 'Article', $groupId);
-                $parameters[] = $this->buildParameter('VatPercentage', $this->getVatPercentage(), 'Article', $groupId);
+                $parameters[] = $this->buildParameter('VatPercentage', $vatPercentage, 'Article', $groupId);
                 $parameters[] = $this->buildParameter('Quantity', $item->getQuantity(), 'Article', $groupId);
                 $parameters[] = $this->buildParameter('Identifier', $item->getName(), 'Article', $groupId);
                 ++$index;
