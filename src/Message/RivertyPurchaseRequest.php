@@ -35,11 +35,6 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         return $parameters;
     }
 
-    /**
-     * Riverty requires a VAT percentage per article line
-     *
-     * @return string|null
-     */
     public function getVatPercentage()
     {
         return $this->getParameter('vatPercentage');
@@ -50,11 +45,6 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         return $this->setParameter('vatPercentage', $value);
     }
 
-    /**
-     * A national ID/company registration number for the billing customer - required by Riverty
-     *
-     * @return string|null
-     */
     public function getIdentificationNumber()
     {
         return $this->getParameter('identificationNumber');
@@ -65,9 +55,6 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         return $this->setParameter('identificationNumber', $value);
     }
 
-    /**
-     * @return string|null
-     */
     public function getSalutation()
     {
         return $this->getParameter('salutation');
@@ -171,13 +158,6 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         return $parameters;
     }
 
-    /**
-     * @param \Omnipay\Common\CreditCard $card
-     * @param string                     $addressType 'Billing' or 'Shipping'
-     * @param string                     $field       e.g. 'FirstName', 'Address1', 'Postcode'
-     *
-     * @return string
-     */
     protected function getCardValue($card, $addressType, $field)
     {
         $method = 'get'.$addressType.$field;
@@ -185,11 +165,6 @@ class RivertyPurchaseRequest extends RivertyAbstractRequest
         return null !== $card ? (string) $card->{$method}() : '';
     }
 
-    /**
-     * @param string $address1
-     *
-     * @return array{street: string, number: string}
-     */
     protected function splitStreetAddress($address1)
     {
         if (preg_match('/^(.*\S)\s+(\d+\s*[a-zA-Z-]{0,4})$/', trim($address1), $matches)) {

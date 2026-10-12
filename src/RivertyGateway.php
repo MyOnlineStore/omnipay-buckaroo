@@ -45,7 +45,6 @@ class RivertyGateway extends AbstractGateway
         return true;
     }
     
-    /** Performs a credit check and creates the Riverty order ("Pay" action) */
     public function purchase(array $parameters = array())
     {
         return $this->createRequest('\Omnipay\Buckaroo\Message\RivertyPurchaseRequest', $parameters);

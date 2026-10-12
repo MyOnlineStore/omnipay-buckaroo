@@ -5,16 +5,8 @@ namespace Omnipay\Buckaroo\Message;
 use Omnipay\Common\Message\AbstractResponse;
 use Omnipay\Common\Message\RedirectResponseInterface;
 
-/**
- * Buckaroo Riverty (Afterpay) Response.
- *
- * Shared across Pay/Authorize/Capture/CancelAuthorize/Refund - they all return the same JSON
- * envelope shape. See https://docs.buckaroo.io/docs/riverty-requests for example bodies and
- * status codes.
- */
 class RivertyResponse extends AbstractResponse implements RedirectResponseInterface
 {
-    /** Status.Code.Code values, per docs.buckaroo.io/docs/riverty-requests */
     const STATUS_SUCCESS = 190;
     const STATUS_PENDING_INPUT = 790;
     const STATUS_PENDING_PROCESSING = 791;
@@ -28,12 +20,6 @@ class RivertyResponse extends AbstractResponse implements RedirectResponseInterf
         return self::STATUS_SUCCESS === $this->getStatusCode();
     }
 
-    /**
-     * True when Buckaroo/Riverty needs an extra step (e.g. the credit check / consumer
-     * acceptance redirect) before the transaction can be considered final.
-     *
-     * @return bool
-     */
     public function isPending()
     {
         return in_array($this->getStatusCode(), array(self::STATUS_PENDING_INPUT, self::STATUS_PENDING_PROCESSING), true);
@@ -51,11 +37,6 @@ class RivertyResponse extends AbstractResponse implements RedirectResponseInterf
             : null;
     }
 
-    /**
-     * Unlike Buckaroo's own generic hosted-checkout redirect (BuckarooGateway/PurchaseResponse,
-     * which is a POST with signed Brq_* form data), Riverty's RequiredAction.RedirectURL is a
-     * plain, self-contained GET link - no form data needs to accompany it.
-     */
     public function getRedirectMethod()
     {
         return 'GET';
@@ -66,9 +47,6 @@ class RivertyResponse extends AbstractResponse implements RedirectResponseInterf
         return array();
     }
 
-    /**
-     * @return int|null
-     */
     public function getStatusCode()
     {
         return isset($this->data['Status']['Code']['Code']) ? (int) $this->data['Status']['Code']['Code'] : null;
