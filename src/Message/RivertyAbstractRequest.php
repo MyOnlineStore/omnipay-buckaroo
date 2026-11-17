@@ -192,9 +192,7 @@ abstract class RivertyAbstractRequest extends \Omnipay\Common\Message\AbstractRe
         );
 
         $httpResponse = $this->httpClient->request('POST', $endpoint, $headers, $body);
-        $responseData = json_decode((string) $responseBody = $httpResponse->getBody()->getContents(), true);
-
-        file_put_contents('/srv/app/var/log/riverty.log', $responseBody . "\r\n\r\n");
+        $responseData = json_decode($httpResponse->getBody()->getContents(), true);
 
         if (!is_array($responseData)) {
             throw new InvalidResponseException('Unable to parse Riverty/Buckaroo JSON response');
